@@ -382,7 +382,11 @@ async def start_command(
     # Prepare session and sink
     started_at = datetime.datetime.utcnow().replace(microsecond=0).isoformat().replace(":", "-")
     started_ts = time.time()
-    session_dir = os.path.join(RECORDINGS_DIR, sanitize_filename(channel.name))
+    session_dir = os.path.join(
+        RECORDINGS_DIR,
+        sanitize_filename(channel.name),
+        sanitize_filename(started_at),
+    )
     ensure_directory(session_dir)
 
     started_ts = time.time()

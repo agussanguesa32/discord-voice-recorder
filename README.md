@@ -57,7 +57,7 @@ RECORDINGS_HOST_DIR=~/my_recordings docker compose up --build -d
 
 Notes:
 - Only one active recording per guild.
-- Output folder is the voice channel name. Contents may include:
+- Output path: `<channel_name>/<timestamp>/`. Contents may include:
   - `mixdown.mp3` (if `MERGE_TRACKS=true`)
   - Per-user tracks (`.wav`) if `SAVE_INDIVIDUAL=true`
   - `recordings.zip` if `ZIP_RECORDINGS=true`

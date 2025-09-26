@@ -1,0 +1,13 @@
+services:
+  bot:
+    build: .
+    container_name: ${CONTAINER_NAME:-discord-voice-bot}
+    restart: unless-stopped
+    env_file:
+      - ${ENV_FILE:-.env}
+    environment:
+      - RECORDINGS_DIR=/app/recordings
+    volumes:
+      - ${RECORDINGS_HOST_DIR:-${HOME}/discord_bot_recordings}:/app/recordings
+
+

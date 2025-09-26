@@ -29,6 +29,8 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s - %(message)s",
 )
 logger = logging.getLogger("discord-voice-bot")
+# Reduce noisy opus decoding logs
+logging.getLogger("discord.opus").setLevel(logging.ERROR)
 
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN", "").strip()
@@ -37,6 +39,9 @@ MERGE_TRACKS = os.getenv("MERGE_TRACKS", "true").strip().lower() in ("1", "true"
 ZIP_RECORDINGS = os.getenv("ZIP_RECORDINGS", "false").strip().lower() in ("1", "true", "yes", "y", "on")
 SAVE_INDIVIDUAL = os.getenv("SAVE_INDIVIDUAL", "false").strip().lower() in ("1", "true", "yes", "y", "on")
 MP3_BITRATE = os.getenv("MP3_BITRATE", "64k").strip() or "64k"
+FFMPEG_SAMPLE_RATE = int(os.getenv("FFMPEG_SAMPLE_RATE", "48000").strip() or 48000)
+FFMPEG_MONO = os.getenv("FFMPEG_MONO", "true").strip().lower() in ("1", "true", "yes", "y", "on")
+FFMPEG_ASYNC_RESAMPLE = os.getenv("FFMPEG_ASYNC_RESAMPLE", "true").strip().lower() in ("1", "true", "yes", "y", "on")
 
 
 def ensure_directory(path: str) -> None:
@@ -257,6 +262,12 @@ def _mix_mp3_files(input_files: list[str], output_file: str) -> None:
         filter_complex,
         "-c:a",
         "libmp3lame",
+        "-ar",
+        str(FFMPEG_SAMPLE_RATE),
+    ]
+    if FFMPEG_MONO:
+        cmd += ["-ac", "1"]
+    cmd += [
         "-b:a",
         MP3_BITRATE,
         output_file,
@@ -303,14 +314,23 @@ def _mix_mp3_files_with_offsets(
             "anullsrc=r=48000:cl=stereo",
         ]
 
-    # Build filter_complex with adelay for each input
+    # Build filter_complex with resample/format + adelay for each input
     filter_parts: list[str] = []
     labels: list[str] = []
     for idx, (_f, dms) in enumerate(inputs_with_offsets):
         in_label = f"[{idx}:a]"
         out_label = f"[a{idx}]"
         labels.append(out_label)
-        filter_parts.append(f"{in_label}adelay={max(0, int(dms))}:all=1{out_label}")
+        chain = in_label
+        if FFMPEG_ASYNC_RESAMPLE:
+            chain += f"aresample={FFMPEG_SAMPLE_RATE}:async=1:first_pts=0,"  # align timeline and heal small gaps
+            if FFMPEG_MONO:
+                chain += f"aformat=sample_rates={FFMPEG_SAMPLE_RATE}:channel_layouts=mono,"
+        else:
+            if FFMPEG_MONO:
+                chain += "aformat=channel_layouts=mono,"
+        chain += f"adelay={max(0, int(dms))}:all=1{out_label}"
+        filter_parts.append(chain)
 
     if use_silence:
         # Extra silence input will be at the end (last index)
@@ -327,6 +347,12 @@ def _mix_mp3_files_with_offsets(
         "[aout]",
         "-c:a",
         "libmp3lame",
+        "-ar",
+        str(FFMPEG_SAMPLE_RATE),
+    ]
+    if FFMPEG_MONO:
+        cmd += ["-ac", "1"]
+    cmd += [
         "-b:a",
         MP3_BITRATE,
         output_file,

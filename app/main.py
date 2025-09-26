@@ -374,7 +374,7 @@ async def start_command(
 
     # Connect
     try:
-        voice_client = await channel.connect()
+        voice_client = await channel.connect(reconnect=False)
     except discord.ClientException as e:
         await ctx.followup.send(f"Could not connect: {e}", ephemeral=True)
         return

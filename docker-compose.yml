@@ -3,6 +3,7 @@ services:
     build: .
     container_name: ${CONTAINER_NAME:-discord-voice-bot}
     restart: unless-stopped
+    network_mode: host
     env_file:
       - ${ENV_FILE:-.env}
     environment:
